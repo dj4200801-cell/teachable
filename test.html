@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Teachable Machine Model</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; }
+    #webcam-container { margin: 10px auto; }
+  </style>
+</head>
+<body>
+  <h2>Teachable Machine Image Model</h2>
+  <button id="start-btn">Start</button>
+  <div id="webcam-container"></div>
+  <div id="label-container"></div>
+
+  <script>
+    let model, webcam, labelContainer, maxPredictions;
+
+    document.getElementById("start-btn").onclick = async () => {
+      const URL = "https://teachablemachine.withgoogle.com/models/YFjJ1yNqu/";
+
+      model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+      maxPredictions = model.getTotalClasses();
+
+      webcam = new tmImage.Webcam(200, 200, true);
+      await webcam.setup();
+      await webcam.play();
+
+      document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+      labelContainer = document.getElementById("label-container");
+      labelContainer.innerHTML = "";
+      for (let i = 0; i < maxPredictions; i++) {
+        labelContainer.appendChild(document.createElement("div"));
+      }
+
+      window.requestAnimationFrame(loop);
+    };
+
+    async function loop() {
+      webcam.update();
+      await predict();
+      window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+      const prediction = await model.predict(webcam.canvas);
+      for (let i = 0; i < maxPredictions; i++) {
+        labelContainer.childNodes[i].innerHTML =
+          `${prediction[i].className}: ${prediction[i].probability.toFixed(2)}`;
+      }
+    }
+  </script>
+</body>
+</html>
