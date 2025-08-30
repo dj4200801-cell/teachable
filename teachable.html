@@ -4,8 +4,14 @@
   <meta charset="UTF-8" />
   <title>Teachable Machine Model</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; }
-    #webcam-container { margin: 10px auto; }
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    #webcam-container {
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -14,52 +20,74 @@
   <div id="webcam-container"></div>
   <div id="label-container"></div>
 
-  <!-- Load TensorFlow and Teachable Machine scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest" onload="scriptsLoaded()"></script>
-
   <script>
-    let model, webcam, labelContainer, maxPredictions;
+    // Load external script dynamically
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('Script load error: ' + src));
+        document.head.appendChild(script);
+      });
+    }
 
-    function scriptsLoaded() {
+    // Wait for both scripts before starting
+    async function loadLibrariesAndInit() {
+      try {
+        await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest');
+        await loadScript('https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest');
+
+        setupButton(); // Safe to use tmImage now
+      } catch (err) {
+        alert('Error loading scripts: ' + err.message);
+        console.error(err);
+      }
+    }
+
+    function setupButton() {
       document.getElementById("start-btn").onclick = async () => {
         const URL = "https://teachablemachine.withgoogle.com/models/YFjJ1yNqu/";
 
         const modelURL = URL + "model.json";
         const metadataURL = URL + "metadata.json";
 
-        model = await tmImage.load(modelURL, metadataURL);
-        maxPredictions = model.getTotalClasses();
+        const model = await tmImage.load(modelURL, metadataURL);
+        const maxPredictions = model.getTotalClasses();
 
-        webcam = new tmImage.Webcam(200, 200, true);
+        const webcam = new tmImage.Webcam(200, 200, true);
         await webcam.setup();
         await webcam.play();
 
         document.getElementById("webcam-container").appendChild(webcam.canvas);
 
-        labelContainer = document.getElementById("label-container");
+        const labelContainer = document.getElementById("label-container");
         labelContainer.innerHTML = "";
         for (let i = 0; i < maxPredictions; i++) {
           labelContainer.appendChild(document.createElement("div"));
         }
 
-        window.requestAnimationFrame(loop);
+        async function loop() {
+          webcam.update();
+          await predict();
+          window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+          const prediction = await model.predict(webcam.canvas);
+          for (let i = 0; i < maxPredictions; i++) {
+            labelContainer.childNodes[i].innerHTML =
+              `${prediction[i].className}: ${prediction[i].probability.toFixed(2)}`;
+          }
+        }
+
+        loop(); // Start prediction loop
       };
     }
 
-    async function loop() {
-      webcam.update();
-      await predict();
-      window.requestAnimationFrame(loop);
-    }
-
-    async function predict() {
-      const prediction = await model.predict(webcam.canvas);
-      for (let i = 0; i < maxPredictions; i++) {
-        labelContainer.childNodes[i].innerHTML =
-          `${prediction[i].className}: ${prediction[i].probability.toFixed(2)}`;
-      }
-    }
+    // Start loading libraries
+    loadLibrariesAndInit();
   </script>
 </body>
 </html>
+
